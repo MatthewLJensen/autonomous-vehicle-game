@@ -93,7 +93,7 @@ class NeuralNetwork {
 
         const output = tf.layers.dense({
             units: this.output_nodes,
-            activation: 'softmax'
+            activation: 'sigmoid' // sigmoid vs softmax?
         })
 
         model.add(output)

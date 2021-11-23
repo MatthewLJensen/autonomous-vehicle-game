@@ -5,7 +5,7 @@ ctx.canvas.height = window.innerHeight - 20
 
 // ML Variables
 enableML = true
-const TOTAL = 250;
+const TOTAL = 100;
 let agents = [];
 let savedAgents = [];
 let objects = [];
@@ -47,7 +47,7 @@ const Direction = {
 }
 
 // Goal Variables
-var numGoals = 10
+var numGoals = 8
 
 // player object
 var player
@@ -156,6 +156,7 @@ class Agent {
         this.direction = 0
         this.score = 0
         this.fitness = 0
+        this.hunger = 100
         this.inputs = 4 + (4 * numObstacles) + (4 * numWalls) + (2 * numGoals)
         if (brain) {
             this.brain = brain.copy();
@@ -290,7 +291,9 @@ class Agent {
 
                     // a collision has occured with a wall. Remove the wall.
                     //Walls.splice(i, 1)
-                    this.score -= 1
+                    
+                    this.hunger = 0
+                    
                 }
 
             }
@@ -300,7 +303,9 @@ class Agent {
                 if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], Obstacles[i])) {
                     //a collision has occured with an obstacle
                     //Obstacles.splice(i, 1)
-                    this.score -= 1
+                    //this.score -= 1
+
+                    this.hunger = 0
                 }
             }
 
@@ -313,7 +318,9 @@ class Agent {
                 //reset game
                 //init()
 
-                this.score -= 1
+                //this.score -= 1
+
+                this.hunger = 0
             }
 
             // loops through goalsLocations
@@ -322,6 +329,7 @@ class Agent {
                     // a goal has been reached
                     // increment score
                     this.score += 200
+                    this.hunger += 50
 
                     // load new goal location
                     Goals[i].updatePosition()
@@ -656,12 +664,18 @@ function draw() {
             agents[i].detectCollisions()
 
 
-            agents[i].score -= .5
+            if (agents[i].speed > 0.5) {
+                agents[i].score += .5 //incentivize staying alive and moving
+            }
+            agents[i].hunger -= .05 // agents get hungry over time
+
 
             // removes agent and saves it
-            if (agents[i].score < -250) {
+            if (agents[i].hunger < 0) {
                 savedAgents.push(agents.splice(i, 1)[0])
             }
+
+
 
             if (agents.length == 0) {
                 nextGeneration()

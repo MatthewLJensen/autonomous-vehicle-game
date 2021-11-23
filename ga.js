@@ -4,6 +4,7 @@
 function nextGeneration() {
     console.log('next generation');
     calculateFitness();
+    //console.log(agents)
     for (let i = 0; i < TOTAL; i++) {
       agents[i] = pickOne();
     }
@@ -23,6 +24,7 @@ function nextGeneration() {
     }
     index--;
 
+    console.log(savedAgents[index].score);
     let agent = savedAgents[index];
     let child = new Agent(agent.brain);
     child.mutate();
