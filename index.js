@@ -252,10 +252,10 @@ class Player {
             // Check against goal location
             if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], goalLocation)) {
                 // a goal has been reached
-                
+
                 // increment score
                 score += 1
-                
+
                 // load new goal location
                 goalLocation.updatePosition()
             }
@@ -510,17 +510,8 @@ function keyUpHandler(e) {
 function init() {
     if (!gameStarted) {
         gameStarted = true
-    }else{
+    } else {
         score -= 10
-    }
-    // generate player
-    player = new Player();
-
-    // Clear and Generate obstacles
-    Obstacles = [];
-    for (var i = 0; i < numObstacles; i++) {
-        obs = new Obstacle();
-        Obstacles.push(obs);
     }
 
     // Clear and Generate walls
@@ -529,6 +520,17 @@ function init() {
         obs = new Wall()
         Walls.push(obs)
     }
+
+    // Clear and Generate obstacles
+    Obstacles = [];
+    for (var i = 0; i < numObstacles; i++) {
+        obs = new Obstacle();
+        Obstacles.push(obs);
+    }
+
+
+    // generate player
+    player = new Player();
 
     goalLocation = new Goal()
 
