@@ -1,10 +1,20 @@
 var canvas = document.getElementById("myCanvas")
 var ctx = canvas.getContext("2d")
 ctx.canvas.width = window.innerWidth
-ctx.canvas.height = window.innerHeight
+ctx.canvas.height = window.innerHeight - 20
+
+// ML Variables
+enableML = true
+const TOTAL = 250;
+let agents = [];
+let savedAgents = [];
+let objects = [];
+let counter = 0;
+let slider;
+
+
 
 // Game Variables
-var score = 0
 var gameStarted = false
 
 // User input variables
@@ -16,7 +26,7 @@ var downPressed = false
 
 // Wall Variables
 var Walls = []
-var numWalls = 15
+var numWalls = 0
 var maxWallHeight = canvas.height / 10
 var minWallHeight = canvas.height / 15
 var maxWallWidth = canvas.width / 15
@@ -28,7 +38,7 @@ function randomDirection() {
 
 // Obstacle Variables
 var Obstacles = []
-var numObstacles = 12
+var numObstacles = 0
 const Direction = {
     UP: 0,
     DOWN: 1,
@@ -37,7 +47,7 @@ const Direction = {
 }
 
 // Goal Variables
-var goalLocation
+var numGoals = 10
 
 // player object
 var player
@@ -134,21 +144,86 @@ function updateObstacles() {
     }
 }
 
-// the player is a triange, controlleed by the arrow keys
-class Player {
-    constructor(size = 40, x = 30, y = canvas.height / 2, speed = 0, direction = 0) {
-        this.size = size
-        this.length = size
-        this.height = size * Math.sqrt(3) / 2
-        this.x = x
-        this.y = y
-        this.speed = speed
-        this.direction = direction
+// the player is a triange, controlleed by the arrow keys, or the neural network
+class Agent {
+    constructor(brain) {
+        this.size = 40
+        this.length = 40
+        this.height = 40 * Math.sqrt(3) / 2
+        this.x = 30
+        this.y = canvas.height / 2
+        this.speed = 0
+        this.direction = 0
+        this.score = 0
+        this.fitness = 0
+        this.inputs = 4 + (4 * numObstacles) + (4 * numWalls) + (2 * numGoals)
+        if (brain) {
+            this.brain = brain.copy();
+        } else {
+            this.brain = new NeuralNetwork(this.inputs, this.inputs * 2, 8);
+        }
     }
 
+    dispose() {
+        this.brain.dispose();
+    }
+
+    mutate() {
+        this.brain.mutate(0.1);
+    }
+
+    think() {
+        let inputs = [];
+        inputs[0] = this.y / canvas.height
+        inputs[1] = this.x / canvas.width
+        inputs[2] = this.speed / 4
+        inputs[3] = this.direction % 360
+
+        // out goals into inputs
+        for (let i = 0; i < Goals.length; i++){
+            inputs[4 + (2 * i)] = Goals[i].y / canvas.height
+            inputs[5 + (2 * i)] = Goals[i].x / canvas.width
+        }
+        
+        // put obstacles into inputs
+        for (let i = 0; i < Obstacles.length; i++) {
+
+            inputs[4 + (4 * i) + (2 * Goals.length)] = Obstacles[i].x / canvas.width
+            inputs[5 + (4 * i) + (2 * Goals.length)] = Obstacles[i].y / canvas.height
+            inputs[6 + (4 * i) + (2 * Goals.length)] = Obstacles[i].direction / 3
+            inputs[7 + (4 * i) + (2 * Goals.length)] = Obstacles[i].speed / 4
+
+        }
+
+        for (let i = 0; i < Walls.length; i++) {
+            let numObsOffset = (Obstacles.length * 4) + (4 * i) + (2 * Goals.length)
+            inputs[4 + numObsOffset] = Walls[i].x / canvas.width
+            inputs[5 + numObsOffset] = Walls[i].y / canvas.height
+            inputs[6 + numObsOffset] = Walls[i].width / maxWallWidth
+            inputs[7 + numObsOffset] = Walls[i].height / maxWallHeight
+        }
+
+        //console.log(inputs)
+
+        let output = this.brain.predict(inputs);
+        //console.log(output)
+        if (output[0] > output[1]) {
+            this.turnRight()
+        }
+        if (output[2] > output[3]) {
+            this.turnLeft()
+        }
+        if (output[4] > output[5]) {
+            this.increaseSpeed()
+        }
+        if (output[6] > output[7]) {
+            this.decreaseSpeed()
+        }
+    }
 
     draw() {
         // got a little help from here: https://stackoverflow.com/a/38238458
+
 
         var radians = this.direction * Math.PI / 180;
         ctx.translate(this.x, this.y);
@@ -157,10 +232,9 @@ class Player {
         ctx.beginPath();
         ctx.moveTo(this.size * Math.cos(0), this.size * Math.sin(0));  // not sure if this is necessary
 
+        // draw each line of the triangle
         for (var i = 1; i <= 3; i += 1) {
             ctx.lineTo(this.size * Math.cos(i * 2 * Math.PI / 3), this.size * Math.sin(i * 2 * Math.PI / 3));
-            //console.log(this.size * Math.cos(i * 2 * Math.PI / 3))
-            //console.log(this.size * Math.sin(i * 2 * Math.PI / 3))
         }
         ctx.closePath();
 
@@ -173,23 +247,6 @@ class Player {
     updatePosition() {
         this.x += this.speed * Math.cos(this.direction * Math.PI / 180)
         this.y += this.speed * Math.sin(this.direction * Math.PI / 180)
-
-        // update direction
-        if (rightPressed) {
-            this.direction += 1
-        }
-        if (leftPressed) {
-            this.direction -= 1
-        }
-
-        // update speed
-        if (upPressed) {
-            this.increaseSpeed()
-        }
-        if (downPressed) {
-            this.decreaseSpeed()
-        }
-
     }
 
 
@@ -204,6 +261,12 @@ class Player {
         } else if (this.speed > 0 && this.speed <= .02) {
             this.speed = 0
         }
+    }
+    turnRight() {
+        this.direction += 1
+    }
+    turnLeft() {
+        this.direction -= 1
     }
 
     detectCollisions() {
@@ -226,7 +289,8 @@ class Player {
                     linesIntersect(Walls[i].x + Walls[i].width, Walls[i].y, Walls[i].x + Walls[i].width, Walls[i].y + Walls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6])) {     // check right line on wall
 
                     // a collision has occured with a wall. Remove the wall.
-                    Walls.splice(i, 1)
+                    //Walls.splice(i, 1)
+                    this.score -= 1
                 }
 
             }
@@ -235,7 +299,8 @@ class Player {
             for (var i = 0; i < Obstacles.length; i++) {
                 if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], Obstacles[i])) {
                     //a collision has occured with an obstacle
-                    Obstacles.splice(i, 1)
+                    //Obstacles.splice(i, 1)
+                    this.score -= 1
                 }
             }
 
@@ -246,29 +311,25 @@ class Player {
                 linesIntersect(0, canvas.height, canvas.width, canvas.height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6])) {
 
                 //reset game
-                init()
+                //init()
+
+                this.score -= 1
             }
 
-            // Check against goal location
-            if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], goalLocation)) {
-                // a goal has been reached
+            // loops through goalsLocations
+            for (var i = 0; i < Goals.length; i++) {
+                if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], Goals[i])) {
+                    // a goal has been reached
+                    // increment score
+                    this.score += 200
 
-                // increment score
-                score += 1
-
-                // load new goal location
-                goalLocation.updatePosition()
+                    // load new goal location
+                    Goals[i].updatePosition()
+                }
             }
+
 
         }
-        // //covers over blue triangle with orange triange using the same points
-        // ctx.beginPath();
-        // ctx.lineTo(triangularPoints[0], triangularPoints[1]);
-        // ctx.lineTo(triangularPoints[2], triangularPoints[3]);
-        // ctx.lineTo(triangularPoints[4], triangularPoints[5]);
-        // ctx.fillStyle = "#FFA500";
-        // ctx.fill();
-        // ctx.closePath();
     }
 
 
@@ -471,68 +532,88 @@ function lineIntersectsObstacle(x1, y1, x2, y2, obstacle) {
     }
 }
 
-
-// setup user input
-document.addEventListener("keydown", keyDownHandler, false);
-document.addEventListener("keyup", keyUpHandler, false);
-function keyDownHandler(e) {
-    if (e.key == "Right" || e.key == "ArrowRight") {
-        rightPressed = true;
-    }
-    else if (e.key == "Left" || e.key == "ArrowLeft") {
-        leftPressed = true;
-    }
-    else if (e.key == "Up" || e.key == "ArrowUp") {
-        upPressed = true;
-    }
-    else if (e.key == "Down" || e.key == "ArrowDown") {
-        downPressed = true;
+// key listeners. S key still needs to be implemented properly
+if (enableML) {
+    tf.setBackend('cpu');
+    function keyPressed() {
+        if (key === 'S') {
+            let agent = agents[0];
+            saveJSON(agent.brain, 'agent.json');
+        }
     }
 }
-function keyUpHandler(e) {
-    if (e.key == "Right" || e.key == "ArrowRight") {
-        rightPressed = false;
+else {
+    // setup user input
+    document.addEventListener("keydown", keyDownHandler, false);
+    document.addEventListener("keyup", keyUpHandler, false);
+    function keyDownHandler(e) {
+        if (e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = true;
+        }
+        else if (e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = true;
+        }
+        else if (e.key == "Up" || e.key == "ArrowUp") {
+            upPressed = true;
+        }
+        else if (e.key == "Down" || e.key == "ArrowDown") {
+            downPressed = true;
+        }
     }
-    else if (e.key == "Left" || e.key == "ArrowLeft") {
-        leftPressed = false;
-    }
-    else if (e.key == "Up" || e.key == "ArrowUp") {
-        upPressed = false;
-    }
-    else if (e.key == "Down" || e.key == "ArrowDown") {
-        downPressed = false;
+    function keyUpHandler(e) {
+        if (e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = false;
+        }
+        else if (e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = false;
+        }
+        else if (e.key == "Up" || e.key == "ArrowUp") {
+            upPressed = false;
+        }
+        else if (e.key == "Down" || e.key == "ArrowDown") {
+            downPressed = false;
+        }
     }
 }
-
 
 
 // initialize variables
 function init() {
     if (!gameStarted) {
         gameStarted = true
-    } else {
-        score -= 10
     }
 
     // Clear and Generate walls
-    Walls = [];
+    Walls = []
     for (var i = 0; i < numWalls; i++) {
         obs = new Wall()
         Walls.push(obs)
     }
 
     // Clear and Generate obstacles
-    Obstacles = [];
+    Obstacles = []
     for (var i = 0; i < numObstacles; i++) {
         obs = new Obstacle();
         Obstacles.push(obs);
     }
 
+    Goals = []
+    for (var i = 0; i < numGoals; i++) {
+        goal = new Goal();
+        Goals.push(goal);
+    }
 
     // generate player
-    player = new Player();
+    if (!enableML) {
+        player = new Player();
+    } else {
+        // create agents
+        for (let i = 0; i < TOTAL; i++) {
+            agents[i] = new Agent();
+        }
+        //console.log(agents)
 
-    goalLocation = new Goal()
+    }
 
 }
 
@@ -560,13 +641,38 @@ function draw() {
 
     drawObstacles()
 
+    if (!enableML) {
+        player.draw()
+        player.updatePosition()
+        player.detectCollisions()
+    } else {
+        for (let i = 0; i < agents.length; i++) {
 
-    player.draw()
-    player.updatePosition()
+            // agent thinks
+            agents[i].think()
 
-    player.detectCollisions()
+            agents[i].draw()
+            agents[i].updatePosition()
+            agents[i].detectCollisions()
 
-    goalLocation.draw()
+
+            agents[i].score -= .5
+
+            // removes agent and saves it
+            if (agents[i].score < -250) {
+                savedAgents.push(agents.splice(i, 1)[0])
+            }
+
+            if (agents.length == 0) {
+                nextGeneration()
+            }
+        }
+
+    }
+
+    for (let i = 0; i < Goals.length; i++) {
+        Goals[i].draw()
+    }
 
 
 
