@@ -36,6 +36,13 @@ function randomDirection() {
     return Math.floor(Math.random() * 4)
 }
 
+// MovingWalls variables
+var MovingWalls = []
+var numMovingWalls = 1
+var maxMovingWallHeight = canvas.height / 1.5
+var minMovingWallHeight = canvas.height / 3.5
+
+
 // Obstacle Variables
 var Obstacles = []
 var numObstacles = 0
@@ -47,7 +54,7 @@ const Direction = {
 }
 
 // Goal Variables
-var numGoals = 8
+var numGoals = 0
 
 // player object
 var player
@@ -65,6 +72,9 @@ function randomCanvasY() {
 }
 function randomCanvasX() {
     return Math.floor(Math.random() * canvas.width)
+}
+function randomMovingWallHeight() {
+    return Math.floor(Math.random() * (maxMovingWallHeight - minMovingWallHeight)) + minMovingWallHeight
 }
 
 
@@ -144,24 +154,83 @@ function updateObstacles() {
     }
 }
 
+
+// walls that start on the right side of the screen and move left. Must be avoided by the agent/player
+class MovingWall {
+    constructor(height = randomMovingWallHeight(), width = randomWallWidth(), x = canvas.width, y = randomCanvasY(), speed = 10) {
+        this.height = height
+        this.width = width
+        this.x = x
+        this.y = y - (this.height / 2) // puts the y at the middle of the moving wall ,so that it doesn't favor the bottom of the screen
+        this.speed = speed
+    }
+    draw() {
+        ctx.beginPath()
+        ctx.fillStyle = "rgb(0,0,0)"
+        ctx.fillRect(this.x, this.y, this.width, this.height)
+        ctx.closePath()
+    }
+
+    updatePosition() {
+        this.x -= this.speed
+    }
+
+    detectMapEdgeCollision() {
+        if (this.x <= 0) {
+            this.x = canvas.width
+            this.height = randomMovingWallHeight()
+            this.width = randomWallWidth()
+            this.y = randomCanvasY() - (this.height / 2)
+        }
+    }
+}
+function drawMovingWalls() {
+    for (var i = 0; i < MovingWalls.length; i++) {
+        MovingWalls[i].draw()
+    }
+}
+function updateMovingWalls() {
+    for (var i = 0; i < MovingWalls.length; i++) {
+        MovingWalls[i].updatePosition()
+        MovingWalls[i].detectMapEdgeCollision()
+
+        // ctx.beginPath()
+        // ctx.fillStyle = "rgb(0,0,255)"
+        // ctx.fillRect(MovingWalls[i].x, MovingWalls[i].y, 70, 70) //- (MovingWalls[i].height/2), 70, 70)
+        // ctx.closePath()
+
+        // ctx.beginPath()
+        // ctx.fillStyle = "rgb(0,0,255)"
+        // ctx.fillRect(MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, 70, 70) //+ (MovingWalls[i].height/2), 70, 70)
+        // ctx.closePath()
+
+
+    }
+}
+
+
+
+
 // the player is a triange, controlleed by the arrow keys, or the neural network
 class Agent {
     constructor(brain) {
         this.size = 40
         this.length = 40
         this.height = 40 * Math.sqrt(3) / 2
-        this.x = 30
+        this.x = canvas.width / 15
         this.y = canvas.height / 2
         this.speed = 0
         this.direction = 0
         this.score = 0
         this.fitness = 0
         this.hunger = 100
-        this.inputs = 4 + (4 * numObstacles) + (4 * numWalls) + (2 * numGoals)
+        this.winner = false
+        this.inputs = 1 + (4 * numObstacles) + (4 * numWalls) + (2 * numGoals) + (3 * numMovingWalls) // thie first 1 should be 4, if you are sending the agent velocity, direction, and x values, rather than just the y
         if (brain) {
             this.brain = brain.copy();
         } else {
-            this.brain = new NeuralNetwork(this.inputs, this.inputs * 2, 8);
+            console.log(this.inputs)
+            this.brain = new NeuralNetwork(this.inputs, 8, 2);
         }
     }
 
@@ -176,50 +245,70 @@ class Agent {
     think() {
         let inputs = [];
         inputs[0] = this.y / canvas.height
-        inputs[1] = this.x / canvas.width
-        inputs[2] = this.speed / 4
-        inputs[3] = this.direction % 360
+        //inputs[1] = this.x / canvas.width
+        //inputs[2] = this.speed / 4
+        //inputs[3] = this.direction % 360
 
         // out goals into inputs
-        for (let i = 0; i < Goals.length; i++){
-            inputs[4 + (2 * i)] = Goals[i].y / canvas.height
-            inputs[5 + (2 * i)] = Goals[i].x / canvas.width
+        for (let i = 0; i < Goals.length; i++) {
+            inputs[1 + (2 * i)] = Goals[i].y / canvas.height
+            inputs[2 + (2 * i)] = Goals[i].x / canvas.width
         }
-        
+
         // put obstacles into inputs
         for (let i = 0; i < Obstacles.length; i++) {
 
-            inputs[4 + (4 * i) + (2 * Goals.length)] = Obstacles[i].x / canvas.width
-            inputs[5 + (4 * i) + (2 * Goals.length)] = Obstacles[i].y / canvas.height
-            inputs[6 + (4 * i) + (2 * Goals.length)] = Obstacles[i].direction / 3
-            inputs[7 + (4 * i) + (2 * Goals.length)] = Obstacles[i].speed / 4
+            inputs[1 + (4 * i) + (2 * Goals.length)] = Obstacles[i].x / canvas.width
+            inputs[2 + (4 * i) + (2 * Goals.length)] = Obstacles[i].y / canvas.height
+            inputs[3 + (4 * i) + (2 * Goals.length)] = Obstacles[i].direction / 3
+            inputs[4 + (4 * i) + (2 * Goals.length)] = Obstacles[i].speed / 4
 
         }
 
+        // put walls into inputs
         for (let i = 0; i < Walls.length; i++) {
             let numObsOffset = (Obstacles.length * 4) + (4 * i) + (2 * Goals.length)
-            inputs[4 + numObsOffset] = Walls[i].x / canvas.width
-            inputs[5 + numObsOffset] = Walls[i].y / canvas.height
-            inputs[6 + numObsOffset] = Walls[i].width / maxWallWidth
-            inputs[7 + numObsOffset] = Walls[i].height / maxWallHeight
+            inputs[1 + numObsOffset] = Walls[i].x / canvas.width
+            inputs[2 + numObsOffset] = Walls[i].y / canvas.height
+            inputs[3 + numObsOffset] = Walls[i].width / maxWallWidth
+            inputs[4 + numObsOffset] = Walls[i].height / maxWallHeight
         }
+
+        // put moving walls into inputs
+        for (let i = 0; i < MovingWalls.length; i++) {
+            let numObsOffset = (Obstacles.length * 4) + (Walls.length * 4) + (4 * i) + (2 * Goals.length)
+            inputs[1 + numObsOffset] = (MovingWalls[i].y + MovingWalls[i].height) / canvas.height // bottom of moving wall
+            inputs[2 + numObsOffset] = MovingWalls[i].y / canvas.height // top of moving wall
+            inputs[3 + numObsOffset] = MovingWalls[i].x / canvas.width // horizontal location
+            //inputs[3 + numObsOffset] = MovingWalls[i].height / maxWallHeight
+        }
+
 
         //console.log(inputs)
 
         let output = this.brain.predict(inputs);
-        //console.log(output)
+
         if (output[0] > output[1]) {
-            this.turnRight()
-        }
-        if (output[2] > output[3]) {
-            this.turnLeft()
-        }
-        if (output[4] > output[5]) {
-            this.increaseSpeed()
-        }
-        if (output[6] > output[7]) {
-            this.decreaseSpeed()
-        }
+            this.moveUp()
+        } 
+        //if (output[1] > .5) {
+        //    this.moveDown()
+       // }
+
+
+        //console.log(output)
+        // if (output[0] > output[1]) {
+        //     this.turnRight()
+        // }
+        // if (output[2] > output[3]) {
+        //     this.turnLeft()
+        // }
+        // if (output[4] > output[5]) {
+        //     this.increaseSpeed()
+        // }
+        // if (output[6] > output[7]) {
+        //     this.decreaseSpeed()
+        // }
     }
 
     draw() {
@@ -239,7 +328,11 @@ class Agent {
         }
         ctx.closePath();
 
-        ctx.fillStyle = "#59D5F7";
+        if (this.winner) {
+            ctx.fillStyle = "#FFA500";
+        } else {
+            ctx.fillStyle = "#59D5F7";
+        }
         ctx.fill();
         ctx.rotate(-radians);
         ctx.translate(-this.x, -this.y);
@@ -248,6 +341,7 @@ class Agent {
     updatePosition() {
         this.x += this.speed * Math.cos(this.direction * Math.PI / 180)
         this.y += this.speed * Math.sin(this.direction * Math.PI / 180)
+        this.y += 1
     }
 
 
@@ -268,6 +362,13 @@ class Agent {
     }
     turnLeft() {
         this.direction -= 1
+    }
+
+    moveUp() {
+        this.y -= 15
+    }
+    moveDown() {
+        this.y += 15
     }
 
     detectCollisions() {
@@ -291,9 +392,9 @@ class Agent {
 
                     // a collision has occured with a wall. Remove the wall.
                     //Walls.splice(i, 1)
-                    
+                    //console.log("collision")
                     this.hunger = 0
-                    
+
                 }
 
             }
@@ -334,6 +435,23 @@ class Agent {
                     // load new goal location
                     Goals[i].updatePosition()
                 }
+            }
+
+
+            // loops through movingwall locations. Could be more efficient. Probably only need to check the far left wall at 1 location a certain distance in front of triangle
+            for (var i = 0; i < MovingWalls.length; i++) {
+                if (linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check top line on wall
+                    linesIntersect(MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check bottom line on wall
+                    linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check left line on wall
+                    linesIntersect(MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6])) {     // check right line on wall
+
+                    // a collision has occured with a wall. Remove the wall.
+                    //Walls.splice(i, 1)
+                    //console.log("collision")
+                    this.hunger = 0
+
+                }
+
             }
 
 
@@ -611,6 +729,12 @@ function init() {
         Goals.push(goal);
     }
 
+    MovingWalls = []
+    for (var i = 0; i < numMovingWalls; i++) {
+        movingWall = new MovingWall();
+        MovingWalls.push(movingWall);
+    }
+
     // generate player
     if (!enableML) {
         player = new Player();
@@ -649,6 +773,11 @@ function draw() {
 
     drawObstacles()
 
+    
+    drawMovingWalls()
+    updateMovingWalls()
+
+
     if (!enableML) {
         player.draw()
         player.updatePosition()
@@ -664,21 +793,30 @@ function draw() {
             agents[i].detectCollisions()
 
 
-            if (agents[i].speed > 0.5) {
-                agents[i].score += .5 //incentivize staying alive and moving
-            }
-            agents[i].hunger -= .05 // agents get hungry over time
+            // if (agents[i].speed > 0.5) {
+            //     agents[i].score += .5 //incentivize staying alive and moving
+            // } else {
+            //     agents[i].hunger -= .2
+            // }
+            //agents[i].hunger -= .05 // agents get hungry over time
 
+
+            agents[i].score++ // incentivize staying alive
 
             // removes agent and saves it
-            if (agents[i].hunger < 0) {
+            if (agents[i].hunger <= 0) {
                 savedAgents.push(agents.splice(i, 1)[0])
             }
 
 
 
             if (agents.length == 0) {
+                MovingWalls = []
                 nextGeneration()
+                for (var j = 0; j < numMovingWalls; j++) {
+                    movingWall = new MovingWall();
+                    MovingWalls.push(movingWall);
+                }
             }
         }
 
@@ -691,6 +829,21 @@ function draw() {
 
 
 }
-var interval = setInterval(draw, 10);
+
+var elem = document.querySelector('input[type="range"]');
+
+var timerId = null;
+timerId = setInterval(draw, 100/elem.value)
+
+
+var rangeValue = function(){
+  clearInterval(timerId);
+  delay = elem.value;
+  timerId = setInterval(draw, 100/delay);
+}
+
+elem.addEventListener("input", rangeValue);
+
+//var interval = setInterval(draw, 10);
 
 

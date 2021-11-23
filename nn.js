@@ -9,6 +9,7 @@ function randomGaussian() {
         var w = x1 * x1 + x2 * x2;
     } while (w >= 1);
     w = Math.sqrt((-2 * Math.log(w)) / w);
+    //console.log(x1 * w);
     return x1 * w;
 }
 
@@ -54,6 +55,7 @@ class NeuralNetwork {
                 let values = tensor.dataSync().slice()
                 for (let j = 0; j < values.length; j++) {
                     if (Math.random(1) < rate) {
+                        //console.log("mutating")
                         let w = values[j]
                         values[j] = w + randomGaussian() //currently relies on p5js. https://p5js.org/reference/#/p5/randomGaussian
                     }
@@ -93,7 +95,7 @@ class NeuralNetwork {
 
         const output = tf.layers.dense({
             units: this.output_nodes,
-            activation: 'sigmoid' // sigmoid vs softmax?
+            activation: 'softmax' // sigmoid vs softmax?
         })
 
         model.add(output)
