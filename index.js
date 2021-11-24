@@ -5,7 +5,7 @@ ctx.canvas.height = window.innerHeight - 20
 
 // ML Variables
 enableML = true
-const TOTAL = 100;
+const TOTAL = 200;
 let agents = [];
 let savedAgents = [];
 let objects = [];
@@ -163,6 +163,7 @@ class MovingWall {
         this.x = x
         this.y = y - (this.height / 2) // puts the y at the middle of the moving wall ,so that it doesn't favor the bottom of the screen
         this.speed = speed
+        this.space = 200
     }
     draw() {
         ctx.beginPath()
@@ -229,8 +230,8 @@ class Agent {
         if (brain) {
             this.brain = brain.copy();
         } else {
-            console.log(this.inputs)
-            this.brain = new NeuralNetwork(this.inputs, 8, 2);
+            //console.log(this.inputs)
+            this.brain = new NeuralNetwork(this.inputs, 10, 2);
         }
     }
 
@@ -244,7 +245,7 @@ class Agent {
 
     think() {
         let inputs = [];
-        inputs[0] = this.y / canvas.height
+        inputs[0] = this.y /// canvas.height
         //inputs[1] = this.x / canvas.width
         //inputs[2] = this.speed / 4
         //inputs[3] = this.direction % 360
@@ -277,9 +278,9 @@ class Agent {
         // put moving walls into inputs
         for (let i = 0; i < MovingWalls.length; i++) {
             let numObsOffset = (Obstacles.length * 4) + (Walls.length * 4) + (4 * i) + (2 * Goals.length)
-            inputs[1 + numObsOffset] = (MovingWalls[i].y + MovingWalls[i].height) / canvas.height // bottom of moving wall
-            inputs[2 + numObsOffset] = MovingWalls[i].y / canvas.height // top of moving wall
-            inputs[3 + numObsOffset] = MovingWalls[i].x / canvas.width // horizontal location
+            inputs[1 + numObsOffset] = (MovingWalls[i].y + MovingWalls[i].height) /// canvas.height // bottom of moving wall
+            inputs[2 + numObsOffset] = MovingWalls[i].y /// canvas.height // top of moving wall
+            inputs[3 + numObsOffset] = MovingWalls[i].x /// canvas.width // horizontal location
             //inputs[3 + numObsOffset] = MovingWalls[i].height / maxWallHeight
         }
 
@@ -288,12 +289,12 @@ class Agent {
 
         let output = this.brain.predict(inputs);
 
-        if (output[0] > output[1]) {
+        if (output[0] >  .5) {
             this.moveUp()
         } 
-        //if (output[1] > .5) {
-        //    this.moveDown()
-       // }
+        if (output[1] > .5) {
+            this.moveDown()
+       }
 
 
         //console.log(output)
@@ -341,7 +342,7 @@ class Agent {
     updatePosition() {
         this.x += this.speed * Math.cos(this.direction * Math.PI / 180)
         this.y += this.speed * Math.sin(this.direction * Math.PI / 180)
-        this.y += 1
+        //this.y += 5
     }
 
 

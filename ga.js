@@ -17,9 +17,6 @@ function nextGeneration() {
     agents[TOTAL - 1].winner = true
 
 
-    console.log(savedAgents)
-    console.log(maxFitness)
-
     for (let i = 0; i < TOTAL - 1; i++) {
         agents[i] = pickOne();
     }
@@ -46,7 +43,6 @@ function nextGeneration() {
   function pickOne(mutate = true) {
     let index = 0;
     let r = Math.random();
-
     while (r > 0) {
       r = r - savedAgents[index].fitness;
       index++;

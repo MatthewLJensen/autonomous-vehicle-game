@@ -44,7 +44,6 @@ class NeuralNetwork {
         })
     }
 
-
     mutate(rate) {
         tf.tidy(() => {
             const weights = this.model.getWeights()
@@ -55,7 +54,6 @@ class NeuralNetwork {
                 let values = tensor.dataSync().slice()
                 for (let j = 0; j < values.length; j++) {
                     if (Math.random(1) < rate) {
-                        //console.log("mutating")
                         let w = values[j]
                         values[j] = w + randomGaussian() //currently relies on p5js. https://p5js.org/reference/#/p5/randomGaussian
                     }
@@ -83,24 +81,18 @@ class NeuralNetwork {
 
     createModel() {
         const model = tf.sequential()
-
         const hidden = tf.layers.dense({
             units: this.hidden_nodes,
-            inputDim: this.input_nodes,
+            //inputDim: this.input_nodes,
             inputShape: [this.input_nodes],
             activation: 'sigmoid'
         })
-
         model.add(hidden)
-
         const output = tf.layers.dense({
             units: this.output_nodes,
-            activation: 'softmax' // sigmoid vs softmax?
+            activation: 'sigmoid' // sigmoid vs softmax?
         })
-
         model.add(output)
-
         return model
-
     }
 }
