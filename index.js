@@ -157,19 +157,32 @@ function updateObstacles() {
 
 // walls that start on the right side of the screen and move left. Must be avoided by the agent/player
 class MovingWall {
-    constructor(height = randomMovingWallHeight(), width = randomWallWidth(), x = canvas.width, y = randomCanvasY(), speed = 10) {
-        this.height = height
-        this.width = width
+    constructor(width = 150, x = canvas.width, y = randomCanvasY(), speed = 10) {
+        //this.height = height
+        this.width = 100
+        this.spacing = 150
         this.x = x
-        this.y = y - (this.height / 2) // puts the y at the middle of the moving wall ,so that it doesn't favor the bottom of the screen
+        //this.y = y - (this.height / 2) // puts the y at the middle of the moving wall ,so that it doesn't favor the bottom of the screen
+        this.top = Math.floor(Math.random() * ((canvas.height/5) - (canvas.height*3/4))) + (canvas.height * 3 / 4)
+        this.bottom = this.top + this.spacing
+
         this.speed = speed
-        this.space = 200
     }
     draw() {
         ctx.beginPath()
         ctx.fillStyle = "rgb(0,0,0)"
-        ctx.fillRect(this.x, this.y, this.width, this.height)
+        ctx.fillRect(this.x, 0, this.width, this.top)
         ctx.closePath()
+
+        ctx.beginPath()
+        ctx.fillStyle = "rgb(0,0,0)"
+        ctx.fillRect(this.x, this.bottom, this.width, canvas.height)
+        ctx.closePath()
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.top);
+        ctx.lineTo(this.x, this.bottom);
+        ctx.stroke();
     }
 
     updatePosition() {
@@ -179,9 +192,13 @@ class MovingWall {
     detectMapEdgeCollision() {
         if (this.x <= 0) {
             this.x = canvas.width
-            this.height = randomMovingWallHeight()
-            this.width = randomWallWidth()
-            this.y = randomCanvasY() - (this.height / 2)
+            this.top = Math.floor(Math.random() * ((canvas.height/5) - (canvas.height*3/4))) + (canvas.height * 3 / 4)
+            this.bottom = this.top + this.spacing
+            //this.height = randomMovingWallHeight()
+            //this.width = randomWallWidth()
+            //this.y = randomCanvasY() - (this.height / 2)
+
+
         }
     }
 }
@@ -245,7 +262,7 @@ class Agent {
 
     think() {
         let inputs = [];
-        inputs[0] = this.y /// canvas.height
+        inputs[0] = this.y / canvas.height
         //inputs[1] = this.x / canvas.width
         //inputs[2] = this.speed / 4
         //inputs[3] = this.direction % 360
@@ -278,9 +295,12 @@ class Agent {
         // put moving walls into inputs
         for (let i = 0; i < MovingWalls.length; i++) {
             let numObsOffset = (Obstacles.length * 4) + (Walls.length * 4) + (4 * i) + (2 * Goals.length)
-            inputs[1 + numObsOffset] = (MovingWalls[i].y + MovingWalls[i].height) /// canvas.height // bottom of moving wall
-            inputs[2 + numObsOffset] = MovingWalls[i].y /// canvas.height // top of moving wall
-            inputs[3 + numObsOffset] = MovingWalls[i].x /// canvas.width // horizontal location
+            // inputs[1 + numObsOffset] = (MovingWalls[i].y + MovingWalls[i].height) / canvas.height // bottom of moving wall
+            // inputs[2 + numObsOffset] = MovingWalls[i].y / canvas.height // top of moving wall
+            // inputs[3 + numObsOffset] = MovingWalls[i].x / canvas.width // horizontal location
+            inputs[1 + numObsOffset] = MovingWalls[i].top / canvas.height // bottom of moving wall
+            inputs[2 + numObsOffset] = MovingWalls[i].bottom / canvas.height // top of moving wall
+            inputs[3 + numObsOffset] = MovingWalls[i].x / canvas.width // horizontal location
             //inputs[3 + numObsOffset] = MovingWalls[i].height / maxWallHeight
         }
 
@@ -337,6 +357,11 @@ class Agent {
         ctx.fill();
         ctx.rotate(-radians);
         ctx.translate(-this.x, -this.y);
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + 50, this.y);
+        ctx.stroke();
     }
 
     updatePosition() {
@@ -441,10 +466,14 @@ class Agent {
 
             // loops through movingwall locations. Could be more efficient. Probably only need to check the far left wall at 1 location a certain distance in front of triangle
             for (var i = 0; i < MovingWalls.length; i++) {
-                if (linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check top line on wall
-                    linesIntersect(MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check bottom line on wall
-                    linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check left line on wall
-                    linesIntersect(MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6])) {     // check right line on wall
+                // if (linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check top line on wall
+                //     linesIntersect(MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check bottom line on wall
+                //     linesIntersect(MovingWalls[i].x, MovingWalls[i].y, MovingWalls[i].x, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6]) ||// check left line on wall
+                //     linesIntersect(MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y, MovingWalls[i].x + MovingWalls[i].width, MovingWalls[i].y + MovingWalls[i].height, triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6])) {     // check right line on wall
+
+                // 
+                
+                if (this.x > movingWall.x && this.x < movingWall.x + movingWall.width && (this.y > movingWall.bottom || this.y < movingWall.top)) {
 
                     // a collision has occured with a wall. Remove the wall.
                     //Walls.splice(i, 1)
@@ -800,6 +829,7 @@ function draw() {
             //     agents[i].hunger -= .2
             // }
             //agents[i].hunger -= .05 // agents get hungry over time
+
 
 
             agents[i].score++ // incentivize staying alive
