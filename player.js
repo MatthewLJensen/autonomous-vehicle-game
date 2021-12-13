@@ -114,14 +114,16 @@ class Player {
             }
 
             // Check against goal location
-            if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], goalLocation)) {
-                // a goal has been reached
+            for (var i = 0; i < Goals.length; i++) {
+                if (lineIntersectsObstacle(triangularPoints[j % 6], triangularPoints[(j + 1) % 6], triangularPoints[(j + 2) % 6], triangularPoints[(j + 3) % 6], Goals[i])) {
+                    // a goal has been reached
+                    // increment score
+                    this.score += 200
+                    this.hunger += 50
 
-                // increment score
-                score += 1
-
-                // load new goal location
-                goalLocation.updatePosition()
+                    // load new goal location
+                    Goals[i].updatePosition()
+                }
             }
 
         }

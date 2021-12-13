@@ -21,15 +21,21 @@
 
 <body>
 
+
     <canvas id="myCanvas" width="720" height="480"></canvas>
     
     <input type="range" min="5" max="20" id="slider">
-
+    
+    <input type="file" id="upload-json"/>
+    <input type="file" id="upload-weights"/>
+    <button id="load_model">Load Model</button>
+    
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
     <script src="nn.js"></script>
     <script src="ga.js"></script>
     <script src="player.js"></script>
     <script type="text/javascript" src="index.js"></script>
+
 </body>
 
 </html>

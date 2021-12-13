@@ -81,13 +81,21 @@ class NeuralNetwork {
 
     createModel() {
         const model = tf.sequential()
-        const hidden = tf.layers.dense({
+        const hidden1 = tf.layers.dense({
             units: this.hidden_nodes,
             //inputDim: this.input_nodes,
             inputShape: [this.input_nodes],
             activation: 'sigmoid'
         })
-        model.add(hidden)
+        const hidden2 = tf.layers.dense({
+            units: this.hidden_nodes,
+            //inputDim: this.input_nodes,
+            inputShape: [this.hidden_nodes],
+            activation: 'sigmoid'
+        })
+
+        model.add(hidden1)
+        //model.add(hidden2)
         const output = tf.layers.dense({
             units: this.output_nodes,
             activation: 'sigmoid' // sigmoid vs softmax?

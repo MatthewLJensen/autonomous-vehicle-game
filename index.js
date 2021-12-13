@@ -1,15 +1,16 @@
 var canvas = document.getElementById("myCanvas")
 var ctx = canvas.getContext("2d")
 ctx.canvas.width = window.innerWidth
-ctx.canvas.height = window.innerHeight - 20
+ctx.canvas.height = window.innerHeight - 30
 
 // ML Variables
 enableML = true
-const TOTAL = 200;
+const TOTAL = 150 ;
 let agents = [];
 let savedAgents = [];
 let objects = [];
 let counter = 0;
+let generation = 1;
 let slider;
 
 
@@ -179,10 +180,11 @@ class MovingWall {
         ctx.fillRect(this.x, this.bottom, this.width, canvas.height)
         ctx.closePath()
 
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.top);
-        ctx.lineTo(this.x, this.bottom);
-        ctx.stroke();
+        //draws line in front of opening
+        // ctx.beginPath();
+        // ctx.moveTo(this.x, this.top);
+        // ctx.lineTo(this.x, this.bottom);
+        // ctx.stroke();
     }
 
     updatePosition() {
@@ -765,6 +767,8 @@ function init() {
         MovingWalls.push(movingWall);
     }
 
+
+
     // generate player
     if (!enableML) {
         player = new Player();
@@ -776,6 +780,8 @@ function init() {
         //console.log(agents)
 
     }
+
+
 
 }
 
@@ -807,7 +813,9 @@ function draw() {
     drawMovingWalls()
     updateMovingWalls()
 
-
+    for (let i = 0; i < Goals.length; i++) {
+        Goals[i].draw()
+    }
     if (!enableML) {
         player.draw()
         player.updatePosition()
@@ -832,6 +840,7 @@ function draw() {
 
 
 
+
             agents[i].score++ // incentivize staying alive
 
             // removes agent and saves it
@@ -844,6 +853,7 @@ function draw() {
             if (agents.length == 0) {
                 MovingWalls = []
                 nextGeneration()
+                generation++
                 for (var j = 0; j < numMovingWalls; j++) {
                     movingWall = new MovingWall();
                     MovingWalls.push(movingWall);
@@ -851,11 +861,14 @@ function draw() {
             }
         }
 
+        // update canvas to show generations and remaining agents
+        ctx.font = "30px Arial";
+        ctx.fillText("Agents Remaining: " + agents.length.toString(), 10, 50);
+        ctx.fillText("Generation #" + generation.toString(), 10, 100);
+
     }
 
-    for (let i = 0; i < Goals.length; i++) {
-        Goals[i].draw()
-    }
+ 
 
 
 
@@ -874,6 +887,20 @@ var rangeValue = function(){
 }
 
 elem.addEventListener("input", rangeValue);
+
+
+//event listener for "load model" button
+document.getElementById("load_model").addEventListener("click", loadSavedModel)
+
+async function loadSavedModel() {
+    console.log("loading model")
+    agents = []
+    const uploadJSONInput = document.getElementById('upload-json');
+    const uploadWeightsInput = document.getElementById('upload-weights');
+    const model = await tf.loadLayersModel(tf.io.browserFiles([uploadJSONInput.files[0], uploadWeightsInput.files[0]]));
+    console.log(model)
+    agents.push(new Agent(new NeuralNetwork(model,4,10,2)))
+}
 
 //var interval = setInterval(draw, 10);
 
