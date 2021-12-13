@@ -87,12 +87,12 @@ class NeuralNetwork {
             inputShape: [this.input_nodes],
             activation: 'sigmoid'
         })
-        const hidden2 = tf.layers.dense({
-            units: this.hidden_nodes,
-            //inputDim: this.input_nodes,
-            inputShape: [this.hidden_nodes],
-            activation: 'sigmoid'
-        })
+        // const hidden2 = tf.layers.dense({
+        //     units: this.hidden_nodes,
+        //     //inputDim: this.input_nodes,
+        //     inputShape: [this.hidden_nodes],
+        //     activation: 'sigmoid'
+        // })
 
         model.add(hidden1)
         //model.add(hidden2)
